@@ -1,0 +1,81 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Termin löschen - {{ appointment.date_time|date:"d.m.Y H:i" }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-trash"></i> Termin löschen
+        </h5>
+    </div>
+    <div class="card-body">
+        <!-- Warnmeldung -->
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i> 
+            <strong>Achtung:</strong> Diese Aktion kann nicht rückgängig gemacht werden!
+        </div>
+        
+        <!-- Termindetails -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Datum/Zeit:</strong> {{ appointment.date_time|date:"d.m.Y H:i" }}</p>
+                        <p><strong>Kunde:</strong> {{ appointment.customer.first_name }} {{ appointment.customer.last_name }}</p>
+                        <p><strong>Fahrzeug:</strong> {{ appointment.vehicle.brand }} {{ appointment.vehicle.model }} ({{ appointment.vehicle.license_plate }})</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Art der Wartung:</strong> {{ appointment.service_type }}</p>
+                        <p><strong>Status:</strong> 
+                            <span class="badge bg-{{ appointment.status_color }}">
+                                {{ appointment.get_status_display }}
+                            </span>
+                        </p>
+                        {% if appointment.description %}
+                            <p><strong>Beschreibung:</strong> {{ appointment.description }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Verknüpfte Daten Warnung -->
+        {% if appointment.invoice %}
+            <div class="alert alert-warning">
+                <h6 class="alert-heading">
+                    <i class="bi bi-info-circle"></i> 
+                    Folgende verknüpfte Daten werden ebenfalls gelöscht:
+                </h6>
+                <ul class="mb-0">
+                    <li>Rechnung Nr. {{ appointment.invoice.invoice_number }} vom {{ appointment.invoice.date|date:"d.m.Y" }}</li>
+                    {% if appointment.invoice.work_items.exists %}
+                        <li>{{ appointment.invoice.work_items.count }} Arbeitspositionen</li>
+                    {% endif %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <!-- Bestätigungsformular -->
+        <form method="post">
+            {% csrf_token %}
+            <p class="mb-4">Sind Sie sicher, dass Sie diesen Termin löschen möchten?</p>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-trash"></i> Ja, endgültig löschen
+                </button>
+                {% if appointment.status == 'completed' %}
+                    <a href="{% url 'appointment_detail' appointment.pk %}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Abbrechen
+                    </a>
+                {% else %}
+                    <a href="{% url 'appointment_list' %}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Abbrechen
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

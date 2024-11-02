@@ -1,0 +1,172 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Fahrzeugdetails - {{ vehicle.brand }} {{ vehicle.model }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Fahrzeuginformationen -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Fahrzeuginformationen</h5>
+                <div class="btn-group">
+                    <a href="{% url 'vehicle_edit' vehicle.pk %}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-pencil"></i> Bearbeiten
+                    </a>
+                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Kennzeichen:</strong></div>
+                    <div class="col-sm-8">{{ vehicle.license_plate }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Marke:</strong></div>
+                    <div class="col-sm-8">{{ vehicle.brand }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Modell:</strong></div>
+                    <div class="col-sm-8">{{ vehicle.model }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Baujahr:</strong></div>
+                    <div class="col-sm-8">{{ vehicle.year }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Besitzer:</strong></div>
+                    <div class="col-sm-8">
+                        <a href="{% url 'customer_detail' vehicle.customer.pk %}">
+                            {{ vehicle.customer.first_name }} {{ vehicle.customer.last_name }}
+                        </a>
+                    </div>
+                </div>
+                {% if vehicle.vin %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>VIN:</strong></div>
+                    <div class="col-sm-8">{{ vehicle.vin }}</div>
+                </div>
+                {% endif %}
+                {% if vehicle.color %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Farbe:</strong></div>
+                    <div class="col-sm-8">{{ vehicle.color }}</div>
+                </div>
+                {% endif %}
+                {% if vehicle.notes %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Notizen:</strong></div>
+                    <div class="col-sm-8">{{ vehicle.notes|linebreaks }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Wartungshistorie -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Wartungshistorie</h5>
+                <a href="{% url 'appointment_create' %}?vehicle={{ vehicle.pk }}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus"></i> Neuer Termin
+                </a>
+            </div>
+            <div class="card-body">
+                {% if vehicle.appointments.exists %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Datum</th>
+                                    <th>Art</th>
+                                    <th>Status</th>
+                                    <th>Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for appointment in vehicle.appointments.all|dictsortreversed:"date_time" %}
+                                <tr>
+                                    <td>{{ appointment.date_time|date:"d.m.Y H:i" }}</td>
+                                    <td>{{ appointment.service_type }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ appointment.status_color }}">
+                                            {{ appointment.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{% url 'appointment_detail' appointment.pk %}" 
+                                               class="btn btn-sm btn-info"
+                                               title="Details anzeigen">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            {% if appointment.status == 'completed' and not appointment.invoice %}
+                                                <a href="{% url 'invoice_create' appointment.pk %}" 
+                                                   class="btn btn-sm btn-success"
+                                                   title="Rechnung erstellen">
+                                                    <i class="bi bi-receipt"></i>
+                                                </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Keine Wartungshistorie vorhanden
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lösch-Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Fahrzeug löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Möchten Sie das Fahrzeug "{{ vehicle.brand }} {{ vehicle.model }}" ({{ vehicle.license_plate }}) wirklich löschen?</p>
+                {% if vehicle.appointments.exists %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        Achtung: Es werden auch {{ vehicle.appointments.count }} zugehörige Termine gelöscht!
+                    </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <form action="{% url 'vehicle_delete' vehicle.pk %}" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tooltips initialisieren
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

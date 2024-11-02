@@ -1,0 +1,47 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Kunde löschen - {{ customer.first_name }} {{ customer.last_name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-trash"></i> Kunde löschen
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i> 
+            <strong>Achtung:</strong> Diese Aktion kann nicht rückgängig gemacht werden!
+        </div>
+        
+        <p>Sind Sie sicher, dass Sie den Kunden "{{ customer.first_name }} {{ customer.last_name }}" löschen möchten?</p>
+        
+        {% if customer.vehicles.exists or customer.appointments.exists %}
+            <div class="alert alert-warning">
+                <h6><i class="bi bi-info-circle"></i> Folgende Daten werden ebenfalls gelöscht:</h6>
+                <ul class="mb-0">
+                    {% if customer.vehicles.exists %}
+                        <li>{{ customer.vehicles.count }} Fahrzeug(e)</li>
+                    {% endif %}
+                    {% if customer.appointments.exists %}
+                        <li>{{ customer.appointments.count }} Termin(e)</li>
+                    {% endif %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="mt-3">
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-trash"></i> Ja, endgültig löschen
+                </button>
+                <a href="{% url 'customer_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Abbrechen
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

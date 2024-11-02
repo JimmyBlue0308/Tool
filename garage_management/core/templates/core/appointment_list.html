@@ -1,0 +1,201 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Termine{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-calendar-check"></i> Terminliste
+        </h5>
+        <div class="btn-group">
+            <a href="{% url 'calendar' %}" class="btn btn-outline-primary">
+                <i class="bi bi-calendar3"></i> Kalenderansicht
+            </a>
+            <a href="{% url 'appointment_create' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Neuer Termin
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Filter und Suche -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <form method="get" class="d-flex gap-2">
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Suchen nach Kunde, Fahrzeug..." 
+                           value="{{ search_query }}">
+                    <select name="status" class="form-select" style="width: auto;">
+                        <option value="">Alle Status</option>
+                        {% for status in status_choices %}
+                            <option value="{{ status.0 }}" {% if selected_status == status.0 %}selected{% endif %}>
+                                {{ status.1 }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Suchen
+                    </button>
+                    {% if search_query or selected_status %}
+                        <a href="{% url 'appointment_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Zurücksetzen
+                        </a>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-secondary" id="today">Heute</button>
+                    <button type="button" class="btn btn-outline-secondary" id="week">Diese Woche</button>
+                    <button type="button" class="btn btn-outline-secondary" id="month">Dieser Monat</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminliste -->
+        {% if appointments %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Datum/Zeit</th>
+                            <th>Kunde</th>
+                            <th>Fahrzeug</th>
+                            <th>Art</th>
+                            <th>Status</th>
+                            <th>Rechnung</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for appointment in appointments %}
+                        <tr>
+                            <td>{{ appointment.date_time|date:"d.m.Y H:i" }}</td>
+                            <td>
+                                <a href="{% url 'customer_detail' appointment.customer.pk %}" class="text-decoration-none">
+                                    {{ appointment.customer.first_name }} {{ appointment.customer.last_name }}
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{% url 'vehicle_detail' appointment.vehicle.pk %}" class="text-decoration-none">
+                                    {{ appointment.vehicle.brand }} {{ appointment.vehicle.model }}
+                                    ({{ appointment.vehicle.license_plate }})
+                                </a>
+                            </td>
+                            <td>{{ appointment.service_type }}</td>
+                            <td>
+                                <span class="badge {% if appointment.status == 'SCHEDULED' %}bg-primary
+                                                  {% elif appointment.status == 'IN_PROGRESS' %}bg-warning
+                                                  {% elif appointment.status == 'COMPLETED' %}bg-success
+                                                  {% elif appointment.status == 'CANCELLED' %}bg-danger
+                                                  {% endif %}">
+                                    {{ appointment.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if appointment.invoice %}
+                                    <a href="{% url 'invoice_detail' appointment.invoice.pk %}" 
+                                       class="btn btn-sm btn-success"
+                                       title="Rechnung anzeigen">
+                                        <i class="bi bi-receipt"></i>
+                                    </a>
+                                {% elif appointment.status == 'COMPLETED' %}
+                                    <a href="{% url 'invoice_create' appointment.pk %}" 
+                                       class="btn btn-sm btn-outline-success"
+                                       title="Rechnung erstellen">
+                                        <i class="bi bi-plus-circle"></i>
+                                    </a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'appointment_detail' appointment.pk %}" 
+                                       class="btn btn-sm btn-info"
+                                       title="Details anzeigen">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{% url 'appointment_edit' appointment.pk %}" 
+                                       class="btn btn-sm btn-primary"
+                                       title="Bearbeiten">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-danger delete-appointment" 
+                                            data-id="{{ appointment.id }}"
+                                            title="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 
+                {% if search_query or selected_status %}
+                    Keine Termine gefunden mit den ausgewählten Filterkriterien
+                {% else %}
+                    Keine Termine vorhanden
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Zeitraum-Filter
+    document.getElementById('today').addEventListener('click', function() {
+        const today = new Date().toISOString().split('T')[0];
+        window.location.href = `?date=${today}`;
+    });
+
+    document.getElementById('week').addEventListener('click', function() {
+        window.location.href = '?period=week';
+    });
+
+    document.getElementById('month').addEventListener('click', function() {
+        window.location.href = '?period=month';
+    });
+
+    // Termin löschen
+    document.querySelectorAll('.delete-appointment').forEach(button => {
+        button.addEventListener('click', function() {
+            if (confirm('Möchten Sie diesen Termin wirklich löschen?')) {
+                const appointmentId = this.dataset.id;
+                fetch(`/appointments/${appointmentId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        throw new Error('Fehler beim Löschen des Termins');
+                    }
+                })
+                .catch(error => {
+                    alert(error.message);
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

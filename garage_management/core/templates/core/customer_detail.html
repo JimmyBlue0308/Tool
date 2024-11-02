@@ -1,0 +1,215 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Kundendetails - {{ customer.first_name }} {{ customer.last_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Kundeninformationen -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Kundeninformationen</h5>
+                <div class="btn-group">
+                    <a href="{% url 'customer_edit' customer.pk %}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-pencil"></i> Bearbeiten
+                    </a>
+                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Name:</strong></div>
+                    <div class="col-sm-8">{{ customer.first_name }} {{ customer.last_name }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>E-Mail:</strong></div>
+                    <div class="col-sm-8">
+                        <a href="mailto:{{ customer.email }}">{{ customer.email }}</a>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Telefon:</strong></div>
+                    <div class="col-sm-8">
+                        <a href="tel:{{ customer.phone }}">{{ customer.phone }}</a>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Adresse:</strong></div>
+                    <div class="col-sm-8">
+                        {{ customer.street }}<br>
+                        {{ customer.zip_code }} {{ customer.city }}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Kunde seit:</strong></div>
+                    <div class="col-sm-8">{{ customer.created_at|date:"d.m.Y" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fahrzeuge -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Fahrzeuge</h5>
+                <a href="{% url 'vehicle_create' %}?customer={{ customer.pk }}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus"></i> Neues Fahrzeug
+                </a>
+            </div>
+            <div class="card-body">
+                {% if customer.vehicles.exists %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Kennzeichen</th>
+                                    <th>Marke/Modell</th>
+                                    <th>Baujahr</th>
+                                    <th>Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vehicle in customer.vehicles.all %}
+                                <tr>
+                                    <td>{{ vehicle.license_plate }}</td>
+                                    <td>{{ vehicle.brand }} {{ vehicle.model }}</td>
+                                    <td>{{ vehicle.year }}</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{% url 'vehicle_edit' vehicle.pk %}" 
+                                               class="btn btn-sm btn-primary"
+                                               title="Fahrzeug bearbeiten">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{% url 'vehicle_delete' vehicle.pk %}" 
+                                               class="btn btn-sm btn-danger"
+                                               title="Fahrzeug löschen">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Keine Fahrzeuge vorhanden
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Termine -->
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Termine</h5>
+                <a href="{% url 'appointment_create' %}?customer={{ customer.pk }}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus"></i> Neuer Termin
+                </a>
+            </div>
+            <div class="card-body">
+                {% if customer.appointments.exists %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Datum</th>
+                                    <th>Fahrzeug</th>
+                                    <th>Status</th>
+                                    <th>Beschreibung</th>
+                                    <th>Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for appointment in customer.appointments.all %}
+                                <tr>
+                                    <td>{{ appointment.date_time|date:"d.m.Y H:i" }}</td>
+                                    <td>{{ appointment.vehicle.brand }} {{ appointment.vehicle.model }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ appointment.status_color }}">
+                                            {{ appointment.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ appointment.description|truncatechars:50 }}</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{% url 'appointment_detail' appointment.pk %}" 
+                                               class="btn btn-sm btn-info"
+                                               title="Details anzeigen">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{% url 'appointment_edit' appointment.pk %}" 
+                                               class="btn btn-sm btn-primary"
+                                               title="Termin bearbeiten">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <a href="{% url 'appointment_delete' appointment.pk %}" 
+                                               class="btn btn-sm btn-danger"
+                                               title="Termin löschen">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Keine Termine vorhanden
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lösch-Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Kunden löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Möchten Sie den Kunden "{{ customer.first_name }} {{ customer.last_name }}" wirklich löschen?</p>
+                <p class="text-danger">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    Diese Aktion kann nicht rückgängig gemacht werden!
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <form action="{% url 'customer_delete' customer.pk %}" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tooltips initialisieren
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

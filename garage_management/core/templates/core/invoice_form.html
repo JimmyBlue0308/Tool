@@ -1,0 +1,483 @@
+{% extends 'core/base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}
+    {% if form.instance.pk %}
+        Rechnung bearbeiten - {{ form.instance.invoice_number }}
+    {% else %}
+        Neue Rechnung
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            {% if form.instance.pk %}
+                <i class="bi bi-receipt"></i> Rechnung bearbeiten
+            {% else %}
+                <i class="bi bi-receipt"></i> Neue Rechnung
+            {% endif %}
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="post" id="invoiceForm" novalidate>
+            {% csrf_token %}
+            
+            <!-- Rechnungskopf -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h6 class="border-bottom pb-2">Rechnungsinformationen</h6>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="{{ form.invoice_number.id_for_label }}" class="form-label">Rechnungsnummer*</label>
+                        {{ form.invoice_number|add_class:"form-control"|attr:"readonly" }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="{{ form.date.id_for_label }}" class="form-label">Rechnungsdatum*</label>
+                        {{ form.date|add_class:"form-control"|attr:"required" }}
+                        {% if form.date.errors %}
+                            <div class="invalid-feedback d-block">{{ form.date.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="{{ form.due_date.id_for_label }}" class="form-label">Fälligkeitsdatum*</label>
+                        {{ form.due_date|add_class:"form-control"|attr:"required" }}
+                        {% if form.due_date.errors %}
+                            <div class="invalid-feedback d-block">{{ form.due_date.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Termin-Information -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h6 class="border-bottom pb-2">Termin</h6>
+                </div>
+                <div class="col-12">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <p class="mb-1"><strong>Kunde:</strong></p>
+                                    <p>{{ appointment.customer.first_name }} {{ appointment.customer.last_name }}</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p class="mb-1"><strong>Fahrzeug:</strong></p>
+                                    <p>{{ appointment.vehicle.brand }} {{ appointment.vehicle.model }}</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p class="mb-1"><strong>Termin:</strong></p>
+                                    <p>{{ appointment.date_time|date:"d.m.Y H:i" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Arbeitspositionen -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h6 class="border-bottom pb-2">Arbeitspositionen</h6>
+                </div>
+                <div class="col-12">
+                    {{ formset.management_form }}
+                    <div id="items-container">
+                        {% for item_form in formset %}
+                            <div class="item-form mb-3">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <!-- WICHTIG: Versteckte Felder für Berechnungen -->
+                                            <input type="hidden" name="items-{{ forloop.counter0 }}-total" value="0">
+                                            <input type="hidden" name="items-{{ forloop.counter0 }}-vat_amount" value="0">
+                                            
+                                            <div class="col-md-6">
+                                                <div class="mb-2">
+                                                    <label class="form-label">Beschreibung*</label>
+                                                    {{ item_form.description|add_class:"form-control"|attr:"required" }}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="mb-2">
+                                                    <label class="form-label">Menge*</label>
+                                                    {{ item_form.quantity|add_class:"form-control quantity"|attr:"required" }}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="mb-2">
+                                                    <label class="form-label">Einzelpreis*</label>
+                                                    {{ item_form.unit_price|add_class:"form-control unit-price"|attr:"required" }}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="mb-2">
+                                                    <label class="form-label">Währung*</label>
+                                                    {{ item_form.currency|add_class:"form-control currency"|attr:"required" }}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="mb-2">
+                                                    <label class="form-label">MwSt.*</label>
+                                                    {{ item_form.vat_rate|add_class:"form-control vat-rate"|attr:"required" }}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="mb-2">
+                                                    <label class="form-label">Gesamt</label>
+                                                    <input type="text" class="form-control total-price" readonly>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% if not forloop.first %}
+                                            <button type="button" class="btn btn-danger btn-sm mt-2 remove-item">
+                                                <i class="bi bi-trash"></i> Position entfernen
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <button type="button" id="add-item" class="btn btn-secondary">
+                        <i class="bi bi-plus-circle"></i> Position hinzufügen
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summen -->
+            <div class="row mb-4">
+                <div class="col-md-6 offset-md-6">
+                    <table class="table">
+                        <tr>
+                            <td class="text-end">Netto:</td>
+                            <td class="text-end" width="120">
+                                <input type="text" id="net-amount" class="form-control-plaintext text-end" readonly>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-end">MwSt.:</td>
+                            <td class="text-end">
+                                <input type="text" id="tax-amount" class="form-control-plaintext text-end" readonly>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-end"><strong>Gesamt:</strong></td>
+                            <td class="text-end">
+                                <input type="text" id="total-amount" class="form-control-plaintext text-end" readonly>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Notizen -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h6 class="border-bottom pb-2">Notizen</h6>
+                </div>
+                <div class="col-12">
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">Interne Notizen</label>
+                        {{ form.notes|add_class:"form-control" }}
+                        <div class="form-text">Diese Notizen erscheinen nicht auf der Rechnung</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="d-flex gap-2 justify-content-between">
+                <div class="btn-group">
+                    <button type="submit" name="action" value="save" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Als Entwurf speichern
+                    </button>
+                    <button type="submit" name="action" value="finalize" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Rechnung finalisieren
+                    </button>
+                </div>
+                <a href="{% url 'invoice_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Abbrechen
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal für neue Position -->
+<div class="modal fade" id="addPositionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Position hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="positionForm">
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Beschreibung</label>
+                        <input type="text" class="form-control" id="description" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Menge</label>
+                        <input type="number" class="form-control" id="quantity" min="0" step="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="unit_price" class="form-label">Einzelpreis</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="unit_price" min="0" step="0.01" required>
+                            <select class="form-select" id="currency" style="max-width: 100px;">
+                                <option value="EUR">€ (EUR)</option>
+                                <option value="CHF">CHF</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="vat_rate" class="form-label">MwSt.</label>
+                        <select class="form-select" id="vat_rate" required>
+                            <option value="19">19% (DE Standard)</option>
+                            <option value="7">7% (DE Ermäßigt)</option>
+                            <option value="20">20% (AT Standard)</option>
+                            <option value="10">10% (AT Ermäßigt)</option>
+                            <option value="7.7">7.7% (CH Standard)</option>
+                            <option value="2.5">2.5% (CH Ermäßigt)</option>
+                            <option value="0">0% (Steuerfrei)</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" id="savePosition">Speichern</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/de.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Datepicker initialisieren
+    flatpickr("input[name='date']", {
+        locale: "de",
+        dateFormat: "Y-m-d",
+        defaultDate: "today"
+    });
+
+    flatpickr("input[name='due_date']", {
+        locale: "de",
+        dateFormat: "Y-m-d",
+        defaultDate: new Date().fp_incr(14) // +14 Tage
+    });
+
+    // WICHTIG: Neue Berechnungsfunktion
+    function updateCalculations() {
+    let netAmount = 0;
+    let totalVatAmount = 0;
+    let currency = '€';
+    
+    // Rundungsfunktion für CHF
+    function roundToNearestFive(num) {
+        return Math.round(num * 20) / 20;
+    }
+    
+    document.querySelectorAll('.item-form').forEach(form => {
+        const quantity = parseFloat(form.querySelector('[name*="-quantity"]').value) || 0;
+        const unitPrice = parseFloat(form.querySelector('[name*="-unit_price"]').value) || 0;
+        const vatRate = parseFloat(form.querySelector('[name*="-vat_rate"]').value) || 0;
+        currency = form.querySelector('[name*="-currency"]').value || '€';
+        
+        const total = quantity * unitPrice;
+        const vatAmount = total * (vatRate / 100);
+        
+        // Aktualisiere die versteckten Felder
+        const totalField = form.querySelector('[name*="-total"]');
+        const vatAmountField = form.querySelector('[name*="-vat_amount"]');
+        if (totalField) totalField.value = total.toFixed(2);
+        if (vatAmountField) vatAmountField.value = vatAmount.toFixed(2);
+        
+        // Aktualisiere die Anzeige mit Rundung für CHF
+        const totalPriceField = form.querySelector('.total-price');
+        if (totalPriceField) {
+            const displayTotal = currency === 'CHF' ? roundToNearestFive(total) : total;
+            totalPriceField.value = displayTotal.toFixed(2) + ' ' + (currency === 'EUR' ? '€' : 'CHF');
+        }
+        
+        netAmount += total;
+        totalVatAmount += vatAmount;
+    });
+    
+    const totalAmount = netAmount + totalVatAmount;
+    
+    // Formatierung und Rundung basierend auf der Währung
+    if (currency === 'CHF') {
+        const roundedTotal = roundToNearestFive(totalAmount);
+        document.getElementById('net-amount').value = roundToNearestFive(netAmount).toFixed(2) + ' CHF';
+        document.getElementById('tax-amount').value = roundToNearestFive(totalVatAmount).toFixed(2) + ' CHF';
+        document.getElementById('total-amount').value = roundedTotal.toFixed(2) + ' CHF';
+    } else {
+        document.getElementById('net-amount').value = netAmount.toFixed(2) + ' €';
+        document.getElementById('tax-amount').value = totalVatAmount.toFixed(2) + ' €';
+        document.getElementById('total-amount').value = totalAmount.toFixed(2) + ' €';
+        }
+    }   
+
+    // Event-Listener für Berechnungen
+    document.querySelectorAll('.quantity, .unit-price, .vat-rate').forEach(input => {
+        input.addEventListener('input', updateCalculations);
+    });
+
+     // WICHTIG: Neue Position hinzufügen
+     const itemsContainer = document.getElementById('items-container');
+    const addButton = document.getElementById('add-item');
+    const totalForms = document.getElementById('id_items-TOTAL_FORMS');
+    
+    // Modal initialisieren
+const addPositionModal = document.getElementById('addPositionModal');
+const modal = new bootstrap.Modal(addPositionModal);
+const savePositionBtn = document.getElementById('savePosition');
+
+// Event-Listener für den "Position hinzufügen" Button
+addButton.addEventListener('click', function() {
+    modal.show();
+});
+
+savePositionBtn.addEventListener('click', function() {
+    const form = document.getElementById('positionForm');
+    
+    if (form.checkValidity()) {
+        const description = document.getElementById('description').value;
+        const quantity = document.getElementById('quantity').value;
+        const unitPrice = document.getElementById('unit_price').value;
+        const currency = document.getElementById('currency').value;
+        const vatRate = document.getElementById('vat_rate').value;
+        
+        const formCount = document.querySelectorAll('.item-form').length;
+        
+        // Template mit versteckten Feldern
+        const template = `
+            <div class="item-form mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            <input type="hidden" name="items-${formCount}-total" value="0">
+                            <input type="hidden" name="items-${formCount}-vat_amount" value="0">
+                            
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <label class="form-label">Beschreibung*</label>
+                                    <input type="text" name="items-${formCount}-description" class="form-control" value="${description}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-2">
+                                    <label class="form-label">Menge*</label>
+                                    <input type="number" name="items-${formCount}-quantity" class="form-control quantity" value="${quantity}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-2">
+                                    <label class="form-label">Einzelpreis*</label>
+                                    <input type="number" name="items-${formCount}-unit_price" class="form-control unit-price" value="${unitPrice}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-2">
+                                    <label class="form-label">Währung*</label>
+                                    <select name="items-${formCount}-currency" class="form-control currency" required>
+                                        <option value="EUR" ${currency === 'EUR' ? 'selected' : ''}>€ (EUR)</option>
+                                        <option value="CHF" ${currency === 'CHF' ? 'selected' : ''}>CHF</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-2">
+                                    <label class="form-label">MwSt.*</label>
+                                    <select name="items-${formCount}-vat_rate" class="form-control vat-rate" required>
+                                        <option value="19" ${vatRate === '19' ? 'selected' : ''}>19% (DE Standard)</option>
+                                        <option value="7" ${vatRate === '7' ? 'selected' : ''}>7% (DE Ermäßigt)</option>
+                                        <option value="20" ${vatRate === '20' ? 'selected' : ''}>20% (AT Standard)</option>
+                                        <option value="10" ${vatRate === '10' ? 'selected' : ''}>10% (AT Ermäßigt)</option>
+                                        <option value="7.7" ${vatRate === '7.7' ? 'selected' : ''}>7.7% (CH Standard)</option>
+                                        <option value="2.5" ${vatRate === '2.5' ? 'selected' : ''}>2.5% (CH Reduziert)</option>
+                                        <option value="0" ${vatRate === '0' ? 'selected' : ''}>0% (Steuerfrei)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-2">
+                                    <label class="form-label">Gesamt</label>
+                                    <input type="text" class="form-control total-price" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm mt-2 remove-item">
+                            <i class="bi bi-trash"></i> Position entfernen
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+
+        const newForm = new DOMParser().parseFromString(template, 'text/html').body.firstChild;
+        itemsContainer.appendChild(newForm);
+        
+        // TOTAL_FORMS aktualisieren
+        totalForms.value = formCount + 1;
+        
+        // Event-Listener für neue Felder
+        newForm.querySelectorAll('.quantity, .unit-price, .vat-rate, .currency').forEach(input => {
+            input.addEventListener('input', updateCalculations);
+            input.addEventListener('change', updateCalculations);
+        });
+        
+        // Modal schließen
+        modal.hide();
+        
+        // Formular zurücksetzen
+        form.reset();
+        
+        // Berechnung aktualisieren
+        setTimeout(updateCalculations, 100); // Kurze Verzögerung für DOM-Update
+    } else {
+        form.reportValidity();
+        }
+    }); 
+
+    // Position entfernen
+    itemsContainer.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-item') || 
+            e.target.parentElement.classList.contains('remove-item')) {
+            const itemForm = e.target.closest('.item-form');
+            itemForm.remove();
+            
+            // Formular-IDs neu durchnummerieren
+            const forms = itemsContainer.getElementsByClassName('item-form');
+            totalForms.value = forms.length;
+            
+            Array.from(forms).forEach((form, index) => {
+                form.querySelectorAll('input, select').forEach(input => {
+                    if (input.name) {
+                        input.name = input.name.replace(/-\d+-/, `-${index}-`);
+                    }
+                });
+            });
+            
+            updateCalculations();
+        }
+    });
+
+    // Initiale Berechnung
+    updateCalculations();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,180 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Fahrzeuge{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-car-front"></i> Fahrzeugliste
+        </h5>
+        <a href="{% url 'vehicle_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Neues Fahrzeug
+        </a>
+    </div>
+    <div class="card-body">
+        <!-- Suchleiste -->
+        <form method="get" class="mb-4">
+            <div class="input-group">
+                <input type="text" name="search" class="form-control" 
+                       placeholder="Suchen nach Marke, Modell, Kennzeichen..." 
+                       value="{{ search_query }}">
+                <button class="btn btn-outline-primary" type="submit">
+                    <i class="bi bi-search"></i> Suchen
+                </button>
+                {% if search_query %}
+                    <a href="{% url 'vehicle_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Zurücksetzen
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+
+        <!-- Filter -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <select name="brand" class="form-select" id="brandFilter">
+                    <option value="">Alle Marken</option>
+                    {% for brand in brands %}
+                        <option value="{{ brand }}" {% if selected_brand == brand %}selected{% endif %}>
+                            {{ brand }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="year" class="form-select" id="yearFilter">
+                    <option value="">Alle Baujahre</option>
+                    {% for year in years %}
+                        <option value="{{ year }}" {% if selected_year == year %}selected{% endif %}>
+                            {{ year }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        {% if vehicles %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Kennzeichen</th>
+                            <th>Marke</th>
+                            <th>Modell</th>
+                            <th>Besitzer</th>
+                            <th>Baujahr</th>
+                            <th>Letzte Wartung</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vehicle in vehicles %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'vehicle_detail' vehicle.pk %}" class="text-decoration-none">
+                                    {{ vehicle.license_plate }}
+                                </a>
+                            </td>
+                            <td>{{ vehicle.brand }}</td>
+                            <td>{{ vehicle.model }}</td>
+                            <td>
+                                <a href="{% url 'customer_detail' vehicle.customer.pk %}" class="text-decoration-none">
+                                    {{ vehicle.customer.first_name }} {{ vehicle.customer.last_name }}
+                                </a>
+                            </td>
+                            <td>{{ vehicle.year }}</td>
+                            <td>
+                                {% if vehicle.last_service %}
+                                    {{ vehicle.last_service|date:"d.m.Y" }}
+                                {% else %}
+                                    <span class="text-muted">Keine Wartung</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'vehicle_detail' vehicle.pk %}" 
+                                       class="btn btn-sm btn-info"
+                                       title="Details anzeigen">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{% url 'vehicle_edit' vehicle.pk %}" 
+                                       class="btn btn-sm btn-primary"
+                                       title="Bearbeiten">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-danger delete-vehicle" 
+                                            data-id="{{ vehicle.id }}"
+                                            title="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                {% if search_query %}
+                    <i class="bi bi-info-circle"></i> Keine Fahrzeuge gefunden für "{{ search_query }}"
+                {% else %}
+                    <i class="bi bi-info-circle"></i> Noch keine Fahrzeuge vorhanden
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tooltips initialisieren
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Filter-Handling
+    const brandFilter = document.getElementById('brandFilter');
+    const yearFilter = document.getElementById('yearFilter');
+
+    [brandFilter, yearFilter].forEach(filter => {
+        filter.addEventListener('change', function() {
+            const searchParams = new URLSearchParams(window.location.search);
+            searchParams.set(filter.name, filter.value);
+            window.location.search = searchParams.toString();
+        });
+    });
+
+    // Fahrzeug-Löschung
+    document.querySelectorAll('.delete-vehicle').forEach(button => {
+        button.addEventListener('click', function() {
+            const vehicleId = this.dataset.id;
+            if (confirm('Möchten Sie dieses Fahrzeug wirklich löschen?')) {
+                fetch(`/vehicles/${vehicleId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        throw new Error('Fehler beim Löschen des Fahrzeugs');
+                    }
+                })
+                .catch(error => {
+                    alert(error.message);
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

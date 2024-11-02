@@ -1,0 +1,269 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<!-- Übersichtskarten -->
+<div class="row mb-4">
+    <!-- Termine heute -->
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">
+                    <i class="bi bi-calendar-check"></i> Termine heute
+                </h6>
+                <h2 class="card-title mb-0">{{ appointments_today }}</h2>
+                <div class="mt-2">
+                    <a href="{% url 'appointment_list' %}?date=today" class="card-link">Details</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Offene Rechnungen -->
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">
+                    <i class="bi bi-receipt"></i> Offene Rechnungen
+                </h6>
+                <h2 class="card-title mb-0">{{ open_invoices }}</h2>
+                <div class="mt-2">
+                    <a href="{% url 'invoice_list' %}?status=unpaid" class="card-link">Details</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Umsatz (Monat) -->
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">
+                    <i class="bi bi-graph-up"></i> Umsatz (Monat)
+                </h6>
+                <h2 class="card-title mb-0">{{ monthly_revenue }} €</h2>
+                <div class="mt-2">
+                    <a href="{% url 'invoice_list' %}?period=this_month" class="card-link">Details</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aktive Kunden -->
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">
+                    <i class="bi bi-people"></i> Aktive Kunden
+                </h6>
+                <h2 class="card-title mb-0">{{ active_customers }}</h2>
+                <div class="mt-2">
+                    <a href="{% url 'customer_list' %}" class="card-link">Details</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Termine diese Woche -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-calendar-week"></i> Termine diese Woche
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if weekly_appointments %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Datum</th>
+                                    <th>Kunde</th>
+                                    <th>Fahrzeug</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for appointment in weekly_appointments %}
+                                <tr>
+                                    <td>{{ appointment.date_time|date:"d.m.Y H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'customer_detail' appointment.customer.pk %}">
+                                            {{ appointment.customer.first_name }} {{ appointment.customer.last_name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ appointment.vehicle.brand }} {{ appointment.vehicle.model }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ appointment.status_color }}">
+                                            {{ appointment.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">Keine Termine diese Woche</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Umsatzentwicklung -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-graph-up"></i> Umsatzentwicklung
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Überfällige Rechnungen -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-exclamation-triangle"></i> Überfällige Rechnungen
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if overdue_invoices %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Rechnungsnr.</th>
+                                    <th>Kunde</th>
+                                    <th>Fällig seit</th>
+                                    <th>Betrag</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in overdue_invoices %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'invoice_detail' invoice.pk %}">
+                                            {{ invoice.invoice_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ invoice.appointment.customer.first_name }} {{ invoice.appointment.customer.last_name }}</td>
+                                    <td>{{ invoice.due_date|date:"d.m.Y" }}</td>
+                                    <td>{{ invoice.total_amount }} €</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">Keine überfälligen Rechnungen</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Fahrzeugstatistik -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart"></i> Fahrzeugstatistik
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="vehicleChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Umsatzentwicklung Chart
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    const revenueChart = new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: JSON.parse('{{ revenue_labels|safe }}'),
+            datasets: [{
+                label: 'Umsatz (€)',
+                data: JSON.parse('{{ revenue_data|safe }}'),
+                borderColor: '#0d6efd',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + ' €';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Fahrzeugstatistik Chart
+    const vehicleCtx = document.getElementById('vehicleChart').getContext('2d');
+    const vehicleChart = new Chart(vehicleCtx, {
+        type: 'doughnut',
+        data: {
+            labels: JSON.parse('{{ vehicle_brands_labels|safe }}'),
+            datasets: [{
+                data: JSON.parse('{{ vehicle_brands_data|safe }}'),
+                backgroundColor: [
+                    '#0d6efd',
+                    '#6610f2',
+                    '#6f42c1',
+                    '#d63384',
+                    '#dc3545',
+                    '#fd7e14',
+                    '#ffc107',
+                    '#198754',
+                    '#20c997',
+                    '#0dcaf0'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right'
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

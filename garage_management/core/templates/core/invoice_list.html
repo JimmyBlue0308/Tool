@@ -1,0 +1,184 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Rechnungen{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-receipt"></i> Rechnungsliste
+        </h5>
+        <div class="btn-group">
+            <a href="{% url 'appointment_list' %}?status=COMPLETED&no_invoice=1" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Neue Rechnung
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Filter und Suche -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <form method="get" class="d-flex gap-2">
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Suchen nach Rechnungsnummer, Kunde..." 
+                           value="{{ search_query }}">
+                    <select name="status" class="form-select" style="width: auto;">
+                        <option value="">Alle Status</option>
+                        {% for status in status_choices %}
+                            <option value="{{ status.0 }}" {% if selected_status == status.0 %}selected{% endif %}>
+                                {{ status.1 }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Suchen
+                    </button>
+                    {% if search_query or selected_status %}
+                        <a href="{% url 'invoice_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Zurücksetzen
+                        </a>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-secondary" id="thisMonth">Dieser Monat</button>
+                    <button type="button" class="btn btn-outline-secondary" id="lastMonth">Letzter Monat</button>
+                    <button type="button" class="btn btn-outline-secondary" id="thisYear">Dieses Jahr</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rechnungsliste -->
+        {% if invoices %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Rechnungsnr.</th>
+                            <th>Datum</th>
+                            <th>Kunde</th>
+                            <th>Fahrzeug</th>
+                            <th>Betrag</th>
+                            <th>Status</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for invoice in invoices %}
+                        <tr>
+                            <td>{{ invoice.invoice_number }}</td>
+                            <td>{{ invoice.created_date|date:"d.m.Y" }}</td>
+                            <td>
+                                <a href="{% url 'customer_detail' invoice.appointment.customer.pk %}" class="text-decoration-none">
+                                    {{ invoice.appointment.customer.first_name }} {{ invoice.appointment.customer.last_name }}
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{% url 'vehicle_detail' invoice.appointment.vehicle.pk %}" class="text-decoration-none">
+                                    {{ invoice.appointment.vehicle.brand }} {{ invoice.appointment.vehicle.model }}
+                                    ({{ invoice.appointment.vehicle.license_plate }})
+                                </a>
+                            </td>
+                            <td>{{ invoice.total }} €</td>
+                            <td>
+                                <span class="badge {% if invoice.payment_status == 'PAID' %}bg-success{% elif invoice.payment_status == 'PENDING' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ invoice.get_payment_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'invoice_detail' invoice.pk %}" 
+                                       class="btn btn-sm btn-info"
+                                       title="Details anzeigen">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{% url 'invoice_pdf' invoice.pk %}" 
+                                       class="btn btn-sm btn-success"
+                                       title="PDF herunterladen">
+                                        <i class="bi bi-file-pdf"></i>
+                                    </a>
+                                    {% if invoice.payment_status == 'PENDING' %}
+                                    <a href="{% url 'invoice_edit' invoice.pk %}" 
+                                       class="btn btn-sm btn-primary"
+                                       title="Bearbeiten">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-danger delete-invoice" 
+                                            data-id="{{ invoice.pk }}"
+                                            title="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 
+                {% if search_query or selected_status %}
+                    Keine Rechnungen gefunden mit den ausgewählten Filterkriterien
+                {% else %}
+                    Keine Rechnungen vorhanden
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Zeitraum-Filter
+    document.getElementById('thisMonth').addEventListener('click', function() {
+        window.location.href = '?period=this_month';
+    });
+
+    document.getElementById('lastMonth').addEventListener('click', function() {
+        window.location.href = '?period=last_month';
+    });
+
+    document.getElementById('thisYear').addEventListener('click', function() {
+        window.location.href = '?period=this_year';
+    });
+
+    // Rechnung löschen
+    document.querySelectorAll('.delete-invoice').forEach(button => {
+        button.addEventListener('click', function() {
+            if (confirm('Möchten Sie diese Rechnung wirklich löschen?')) {
+                const invoiceId = this.dataset.id;
+                fetch(`/invoices/${invoiceId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        throw new Error('Fehler beim Löschen der Rechnung');
+                    }
+                })
+                .catch(error => {
+                    alert(error.message);
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

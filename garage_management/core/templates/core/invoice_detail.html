@@ -1,0 +1,187 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Rechnung - {{ invoice.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Rechnungsinformationen -->
+    <div class="col-md-8 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-receipt"></i> Rechnungsdetails
+                </h5>
+                <div class="btn-group">
+                    <a href="{% url 'invoice_pdf' invoice.pk %}" class="btn btn-success btn-sm">
+                        <i class="bi bi-file-pdf"></i> PDF
+                    </a>
+                    {% if invoice.status == 'draft' %}
+                        <a href="{% url 'invoice_edit' invoice.pk %}" class="btn btn-primary btn-sm">
+                            <i class="bi bi-pencil"></i> Bearbeiten
+                        </a>
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="bi bi-trash"></i> Löschen
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Status Badge -->
+                <div class="mb-4 text-center">
+                    <span class="badge bg-{{ invoice.status_color }} fs-6">
+                        {{ invoice.get_status_display }}
+                    </span>
+                </div>
+
+                <!-- Rechnungsdetails -->
+                <div class="row mb-4">
+                    <div class="col-sm-6">
+                        <p><strong>Rechnungsnummer:</strong><br>{{ invoice.invoice_number }}</p>
+                        <p><strong>Datum:</strong><br>{{ invoice.date|date:"d.m.Y" }}</p>
+                        <p><strong>Fällig bis:</strong><br>{{ invoice.due_date|date:"d.m.Y" }}</p>
+                    </div>
+                    <div class="col-sm-6">
+                        <p>
+                            <strong>Kunde:</strong><br>
+                            <a href="{% url 'customer_detail' invoice.appointment.customer.pk %}">
+                                {{ invoice.appointment.customer.first_name }} {{ invoice.appointment.customer.last_name }}
+                            </a>
+                        </p>
+                        <p>
+                            <strong>Fahrzeug:</strong><br>
+                            <a href="{% url 'vehicle_detail' invoice.appointment.vehicle.pk %}">
+                                {{ invoice.appointment.vehicle.brand }} {{ invoice.appointment.vehicle.model }}
+                                ({{ invoice.appointment.vehicle.license_plate }})
+                            </a>
+                        </p>
+                        <p>
+                            <strong>Termin:</strong><br>
+                            <a href="{% url 'appointment_detail' invoice.appointment.pk %}">
+                                {{ invoice.appointment.date_time|date:"d.m.Y H:i" }}
+                            </a>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Arbeitspositionen -->
+                <h6 class="border-bottom pb-2">Arbeitspositionen</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Beschreibung</th>
+                                <th class="text-end">Menge</th>
+                                <th class="text-end">Einzelpreis</th>
+                                <th class="text-end">Gesamt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in invoice.items.all %}
+                            <tr>
+                                <td>{{ item.description }}</td>
+                                <td class="text-end">{{ item.quantity }}</td>
+                                <td class="text-end">{{ item.unit_price }} €</td>
+                                <td class="text-end">{{ item.total_price }} €</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>Netto:</strong></td>
+                                <td class="text-end">{{ invoice.net_amount }} €</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>MwSt. ({{ invoice.tax_rate }}%):</strong></td>
+                                <td class="text-end">{{ invoice.tax_amount }} €</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>Gesamt:</strong></td>
+                                <td class="text-end"><strong>{{ invoice.total_amount }} €</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                {% if invoice.notes %}
+                <div class="mb-4">
+                    <h6 class="border-bottom pb-2">Notizen</h6>
+                    {{ invoice.notes|linebreaks }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Zahlungsinformationen -->
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-credit-card"></i> Zahlungsinformationen
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if invoice.is_paid %}
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> Bezahlt am {{ invoice.paid_date|date:"d.m.Y" }}
+                    </div>
+                {% else %}
+                    <div class="alert {% if invoice.is_overdue %}alert-danger{% else %}alert-warning{% endif %}">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        {% if invoice.is_overdue %}
+                            Überfällig seit {{ invoice.due_date|date:"d.m.Y" }}
+                        {% else %}
+                            Fällig bis {{ invoice.due_date|date:"d.m.Y" }}
+                        {% endif %}
+                    </div>
+                    {% if invoice.status != 'draft' %}
+                        <form method="post" action="{% url 'invoice_mark_paid' invoice.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-check-circle"></i> Als bezahlt markieren
+                            </button>
+                        </form>
+                    {% endif %}
+                {% endif %}
+
+                <div class="mt-4">
+                    <h6 class="border-bottom pb-2">Bankverbindung</h6>
+                    <p class="mb-1"><strong>Kontoinhaber:</strong><br>{{ company_name }}</p>
+                    <p class="mb-1"><strong>IBAN:</strong><br>{{ company_iban }}</p>
+                    <p class="mb-1"><strong>BIC:</strong><br>{{ company_bic }}</p>
+                    <p class="mb-0"><strong>Verwendungszweck:</strong><br>{{ invoice.invoice_number }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lösch-Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rechnung löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Möchten Sie die Rechnung "{{ invoice.invoice_number }}" wirklich löschen?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    Diese Aktion kann nicht rückgängig gemacht werden!
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <form action="{% url 'invoice_delete' invoice.pk %}" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

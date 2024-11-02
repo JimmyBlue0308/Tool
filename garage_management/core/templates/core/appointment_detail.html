@@ -1,0 +1,170 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Termindetails - {{ appointment.date_time|date:"d.m.Y H:i" }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Termininformationen -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Termininformationen</h5>
+                <div class="btn-group">
+                    <a href="{% url 'appointment_edit' appointment.pk %}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-pencil"></i> Bearbeiten
+                    </a>
+                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Status Badge -->
+                <div class="mb-4 text-center">
+                    <span class="badge bg-{{ appointment.status_color }} fs-6">
+                        {{ appointment.get_status_display }}
+                    </span>
+                </div>
+
+                <!-- Termin Details -->
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Datum/Zeit:</strong></div>
+                    <div class="col-sm-8">{{ appointment.date_time|date:"d.m.Y H:i" }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Kunde:</strong></div>
+                    <div class="col-sm-8">
+                        <a href="{% url 'customer_detail' appointment.customer.pk %}">
+                            {{ appointment.customer.first_name }} {{ appointment.customer.last_name }}
+                        </a>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Fahrzeug:</strong></div>
+                    <div class="col-sm-8">
+                        <a href="{% url 'vehicle_detail' appointment.vehicle.pk %}">
+                            {{ appointment.vehicle.brand }} {{ appointment.vehicle.model }}
+                            ({{ appointment.vehicle.license_plate }})
+                        </a>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Art:</strong></div>
+                    <div class="col-sm-8">{{ appointment.service_type }}</div>
+                </div>
+                {% if appointment.description %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Beschreibung:</strong></div>
+                    <div class="col-sm-8">{{ appointment.description|linebreaks }}</div>
+                </div>
+                {% endif %}
+                {% if appointment.notes %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Notizen:</strong></div>
+                    <div class="col-sm-8">{{ appointment.notes|linebreaks }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Rechnung & Arbeiten -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Rechnung & Arbeiten</h5>
+                {% if appointment.status == 'completed' and not appointment.invoice %}
+                    <a href="{% url 'invoice_create' appointment.pk %}" class="btn btn-success btn-sm">
+                        <i class="bi bi-receipt"></i> Rechnung erstellen
+                    </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if appointment.invoice %}
+                    <div class="alert alert-success">
+                        <h6 class="alert-heading">
+                            <i class="bi bi-receipt"></i> Rechnung vorhanden
+                        </h6>
+                        <p class="mb-0">
+                            Rechnungsnummer: {{ appointment.invoice.invoice_number }}<br>
+                            Datum: {{ appointment.invoice.date|date:"d.m.Y" }}<br>
+                            Betrag: {{ appointment.invoice.total_amount }} €
+                        </p>
+                        <hr>
+                        <a href="{% url 'invoice_detail' appointment.invoice.pk %}" class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-eye"></i> Rechnung anzeigen
+                        </a>
+                        <a href="{% url 'invoice_pdf' appointment.invoice.pk %}" class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-file-pdf"></i> PDF herunterladen
+                        </a>
+                    </div>
+                {% elif appointment.status == 'completed' %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        Termin abgeschlossen, aber noch keine Rechnung erstellt
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        Rechnung kann nach Abschluss des Termins erstellt werden
+                    </div>
+                {% endif %}
+
+                <!-- Durchgeführte Arbeiten -->
+                {% if appointment.work_items.exists %}
+                    <h6 class="border-bottom pb-2 mt-4">Durchgeführte Arbeiten</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Beschreibung</th>
+                                    <th class="text-end">Preis</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in appointment.work_items.all %}
+                                <tr>
+                                    <td>{{ item.description }}</td>
+                                    <td class="text-end">{{ item.price }} €</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lösch-Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Termin löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Möchten Sie diesen Termin wirklich löschen?</p>
+                {% if appointment.invoice %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        Achtung: Die zugehörige Rechnung wird ebenfalls gelöscht!
+                    </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <form action="{% url 'appointment_delete' appointment.pk %}" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

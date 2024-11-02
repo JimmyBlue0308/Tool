@@ -1,0 +1,57 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Rechnung löschen - {{ invoice.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-trash"></i> Rechnung löschen
+        </h5>
+    </div>
+    <div class="card-body">
+        <!-- Warnmeldung -->
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i> 
+            <strong>Achtung:</strong> Diese Aktion kann nicht rückgängig gemacht werden!
+        </div>
+        
+        <!-- Rechnungsdetails -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Rechnungsnummer:</strong> {{ invoice.invoice_number }}</p>
+                        <p><strong>Datum:</strong> {{ invoice.date|date:"d.m.Y" }}</p>
+                        <p><strong>Status:</strong> 
+                            <span class="badge bg-{{ invoice.status_color }}">
+                                {{ invoice.get_status_display }}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Kunde:</strong> {{ invoice.appointment.customer.first_name }} {{ invoice.appointment.customer.last_name }}</p>
+                        <p><strong>Fahrzeug:</strong> {{ invoice.appointment.vehicle.brand }} {{ invoice.appointment.vehicle.model }}</p>
+                        <p><strong>Betrag:</strong> {{ invoice.total_amount }} €</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bestätigungsformular -->
+        <form method="post">
+            {% csrf_token %}
+            <p class="mb-4">Sind Sie sicher, dass Sie diese Rechnung löschen möchten?</p>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-trash"></i> Ja, endgültig löschen
+                </button>
+                <a href="{% url 'invoice_detail' invoice.pk %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Abbrechen
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

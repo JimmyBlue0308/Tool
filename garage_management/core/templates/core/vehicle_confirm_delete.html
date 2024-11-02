@@ -1,0 +1,74 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Fahrzeug löschen - {{ vehicle.brand }} {{ vehicle.model }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-trash"></i> Fahrzeug löschen
+        </h5>
+    </div>
+    <div class="card-body">
+        <!-- Warnmeldung -->
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i> 
+            <strong>Achtung:</strong> Diese Aktion kann nicht rückgängig gemacht werden!
+        </div>
+        
+        <!-- Fahrzeugdetails -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Marke:</strong> {{ vehicle.brand }}</p>
+                        <p><strong>Modell:</strong> {{ vehicle.model }}</p>
+                        <p><strong>Kennzeichen:</strong> {{ vehicle.license_plate }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Besitzer:</strong> {{ vehicle.customer.first_name }} {{ vehicle.customer.last_name }}</p>
+                        <p><strong>Baujahr:</strong> {{ vehicle.year }}</p>
+                        {% if vehicle.vin %}
+                            <p><strong>VIN:</strong> {{ vehicle.vin }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Verknüpfte Daten Warnung -->
+        {% if vehicle.appointments.exists %}
+            <div class="alert alert-warning">
+                <h6 class="alert-heading">
+                    <i class="bi bi-info-circle"></i> 
+                    Folgende verknüpfte Daten werden ebenfalls gelöscht:
+                </h6>
+                <ul class="mb-0">
+                    <li>{{ vehicle.appointments.count }} Termin(e)</li>
+                    {% with invoice_count=vehicle.appointments.filter.invoice__isnull=False.count %}
+                        {% if invoice_count %}
+                            <li>{{ invoice_count }} Rechnung(en)</li>
+                        {% endif %}
+                    {% endwith %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <!-- Bestätigungsformular -->
+        <form method="post">
+            {% csrf_token %}
+            <p class="mb-4">Sind Sie sicher, dass Sie dieses Fahrzeug löschen möchten?</p>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-trash"></i> Ja, endgültig löschen
+                </button>
+                <a href="{% url 'vehicle_detail' vehicle.pk %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Abbrechen
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

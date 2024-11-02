@@ -1,0 +1,155 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Werkstattkalender{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+<style>
+    .fc-event {
+        cursor: pointer;
+    }
+    .fc-event-title {
+        font-weight: 500;
+    }
+    .status-scheduled { background-color: var(--bs-primary) !important; border-color: var(--bs-primary) !important; }
+    .status-in_progress { background-color: var(--bs-warning) !important; border-color: var(--bs-warning) !important; }
+    .status-completed { background-color: var(--bs-success) !important; border-color: var(--bs-success) !important; }
+    .status-cancelled { background-color: var(--bs-danger) !important; border-color: var(--bs-danger) !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-calendar-week"></i> Werkstattkalender
+        </h5>
+        <div class="btn-group">
+            <a href="{% url 'appointment_create' %}" class="btn btn-success btn-sm">
+                <i class="bi bi-plus-circle"></i> Neuer Termin
+            </a>
+            <button id="printButton" class="btn btn-secondary btn-sm">
+                <i class="bi bi-printer"></i> Drucken
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Kalender-Container -->
+        <div id="calendar"></div>
+    </div>
+</div>
+
+<!-- Termin-Modal -->
+<div class="modal fade" id="appointmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Termindetails</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Laden...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/de.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+    const modal = new bootstrap.Modal(document.getElementById('appointmentModal'));
+    const modalBody = document.querySelector('#appointmentModal .modal-body');
+
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        locale: 'de',
+        slotMinTime: '08:00:00',
+        slotMaxTime: '18:00:00',
+        allDaySlot: false,
+        slotDuration: '00:15:00',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        buttonText: {
+            today: 'Heute',
+            month: 'Monat',
+            week: 'Woche',
+            day: 'Tag'
+        },
+        events: '/api/appointments/',
+        eventClick: function(info) {
+            modalBody.innerHTML = '<div class="d-flex justify-content-center"><div class="spinner-border text-primary"></div></div>';
+            modal.show();
+            
+            fetch(`/api/appointments/${info.event.id}/`)
+                .then(response => response.json())
+                .then(data => {
+                    const status = data.status_display;
+                    const statusClass = `badge bg-${data.status_color}`;
+                    
+                    modalBody.innerHTML = `
+                        <div class="mb-3 text-center">
+                            <span class="${statusClass}">${status}</span>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <p><strong>Kunde:</strong><br>${data.customer_name}</p>
+                                <p><strong>Fahrzeug:</strong><br>${data.vehicle_info}</p>
+                                <p><strong>Datum/Zeit:</strong><br>${data.date_time}</p>
+                            </div>
+                            <div class="col-sm-6">
+                                <p><strong>Art der Wartung:</strong><br>${data.service_type}</p>
+                                <p><strong>Dauer:</strong><br>${data.duration} Minuten</p>
+                                ${data.description ? `<p><strong>Beschreibung:</strong><br>${data.description}</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="mt-3 d-flex gap-2">
+                            <a href="/appointments/${data.id}/" class="btn btn-primary">
+                                <i class="bi bi-eye"></i> Details
+                            </a>
+                            ${data.status !== 'completed' ? `
+                                <a href="/appointments/${data.id}/edit/" class="btn btn-secondary">
+                                    <i class="bi bi-pencil"></i> Bearbeiten
+                                </a>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+        },
+        eventClassNames: function(arg) {
+            return [`status-${arg.event.extendedProps.status}`];
+        },
+        eventContent: function(arg) {
+            return {
+                html: `
+                    <div class="fc-event-main-frame">
+                        <div class="fc-event-title-container">
+                            <div class="fc-event-title">${arg.event.title}</div>
+                            <div class="fc-event-time small">${arg.timeText}</div>
+                        </div>
+                    </div>
+                `
+            };
+        }
+    });
+
+    calendar.render();
+
+    // Druckfunktion
+    document.getElementById('printButton').addEventListener('click', function() {
+        window.print();
+    });
+});
+</script>
+{% endblock %}

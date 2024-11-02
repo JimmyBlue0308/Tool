@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 2cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.4;
+        }
+        .header {
+            margin-bottom: 2cm;
+        }
+        .company-info {
+            text-align: left;
+            font-size: 9pt;
+            color: #666;
+            margin-bottom: 0.5cm;
+        }
+        .invoice-info {
+            text-align: right;
+            margin-bottom: 1cm;
+        }
+        .customer-address {
+            margin-bottom: 2cm;
+        }
+        .title {
+            font-size: 20pt;
+            font-weight: bold;
+            margin-bottom: 1cm;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1cm;
+        }
+        th {
+            background-color: #f0f0f0;
+            padding: 0.3cm;
+            text-align: left;
+            font-weight: bold;
+            border-bottom: 1pt solid #999;
+        }
+        td {
+            padding: 0.3cm;
+            border-bottom: 1pt solid #ddd;
+        }
+        .amount-col {
+            text-align: right;
+            width: 20%;
+        }
+        .quantity-col {
+            text-align: right;
+            width: 15%;
+        }
+        .totals {
+            width: 40%;
+            float: right;
+            margin-top: 0.5cm;
+        }
+        .totals td {
+            padding: 0.2cm;
+            border: none;
+        }
+        .totals .total-row {
+            font-weight: bold;
+            font-size: 12pt;
+        }
+        .payment-info {
+            margin-top: 2cm;
+            padding-top: 0.5cm;
+            border-top: 1pt solid #ddd;
+        }
+        .footer {
+            font-size: 9pt;
+            color: #666;
+            text-align: center;
+            border-top: 1pt solid #ddd;
+            padding-top: 0.3cm;
+            position: absolute;
+            bottom: 1cm;
+            left: 0;
+            right: 0;
+            }
+    </style>
+</head>
+<body>
+    <!-- Briefkopf -->
+    <div class="header">
+        <div class="company-info">
+            {{ company_name }} - {{ company_street }} - {{ company_zip }} {{ company_city }}
+        </div>
+        <div class="customer-address">
+            {{ invoice.appointment.customer.first_name }} {{ invoice.appointment.customer.last_name }}<br>
+            {{ invoice.appointment.customer.street }}<br>
+            {{ invoice.appointment.customer.zip_code }} {{ invoice.appointment.customer.city }}
+        </div>
+        <div class="invoice-info">
+            Rechnungsnummer: {{ invoice.invoice_number }}<br>
+            Datum: {{ invoice.date|date:"d.m.Y" }}<br>
+            Fällig bis: {{ invoice.due_date|date:"d.m.Y" }}
+        </div>
+    </div>
+
+    <!-- Titel -->
+    <div class="title">Rechnung</div>
+
+    <!-- Fahrzeuginfo -->
+    <p>
+        <strong>Fahrzeug:</strong> {{ invoice.appointment.vehicle.brand }} {{ invoice.appointment.vehicle.model }}<br>
+        <strong>Kennzeichen:</strong> {{ invoice.appointment.vehicle.license_plate }}<br>
+        {% if invoice.appointment.vehicle.vin %}
+            <strong>VIN:</strong> {{ invoice.appointment.vehicle.vin }}<br>
+        {% endif %}
+        <strong>Termin:</strong> {{ invoice.appointment.date_time|date:"d.m.Y H:i" }}
+    </p>
+
+    <!-- Arbeitspositionen -->
+    <table>
+        <thead>
+            <tr>
+                <th>Position</th>
+                <th class="quantity-col">Menge</th>
+                <th class="amount-col">Einzelpreis</th>
+                <th class="amount-col">Gesamt</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in invoice.items.all %}
+            <tr>
+                <td>{{ item.description }}</td>
+                <td class="quantity-col">{{ item.quantity }}</td>
+                <td class="amount-col">{{ item.unit_price|floatformat:2 }} €</td>
+                <td class="amount-col">{{ item.total_price|floatformat:2 }} €</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Summen -->
+    <div class="totals">
+        <table>
+            <tr>
+                <td>Netto:</td>
+                <td class="amount-col">{{ invoice.net_amount|floatformat:2 }} €</td>
+            </tr>
+            <tr>
+                <td>MwSt. ({{ invoice.tax_rate }}%):</td>
+                <td class="amount-col">{{ invoice.tax_amount|floatformat:2 }} €</td>
+            </tr>
+            <tr class="total-row">
+                <td>Gesamtbetrag:</td>
+                <td class="amount-col">{{ invoice.total_amount|floatformat:2 }} €</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Zahlungsinformationen -->
+    <div class="payment-info">
+        <p>Bitte überweisen Sie den Rechnungsbetrag bis zum {{ invoice.due_date|date:"d.m.Y" }} auf folgendes Konto:</p>
+        <p>
+            <strong>Kontoinhaber:</strong> {{ company_name }}<br>
+            <strong>IBAN:</strong> {{ company_iban }}<br>
+            <strong>BIC:</strong> {{ company_bic }}<br>
+            <strong>Verwendungszweck:</strong> {{ invoice.invoice_number }}
+        </p>
+    </div>
+
+    <!-- Footer -->
+    <div id="footerContent" class="footer">
+        {{ company_name }} - {{ company_street }} - {{ company_zip }} {{ company_city }}<br>
+        Tel: {{ company_phone }} - Email: {{ company_email }}<br>
+        USt-IdNr: {{ company_tax_id }} - Handelsregister: {{ company_register }}
+    </div>
+</body>
+</html>

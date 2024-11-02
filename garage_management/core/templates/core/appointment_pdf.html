@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 2cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .header {
+            margin-bottom: 30px;
+        }
+        .company-info {
+            text-align: right;
+            margin-bottom: 40px;
+        }
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .info-box {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .info-row {
+            margin-bottom: 5px;
+        }
+        .label {
+            font-weight: bold;
+            width: 150px;
+            display: inline-block;
+        }
+        .status {
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: white;
+        }
+        .status-scheduled { background-color: #0d6efd; }
+        .status-in_progress { background-color: #ffc107; }
+        .status-completed { background-color: #198754; }
+        .status-cancelled { background-color: #dc3545; }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+            font-size: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- Firmeninfo -->
+    <div class="company-info">
+        <strong>{{ company_name }}</strong><br>
+        {{ company_street }}<br>
+        {{ company_zip }} {{ company_city }}<br>
+        Tel: {{ company_phone }}<br>
+        Email: {{ company_email }}
+    </div>
+
+    <!-- Titel -->
+    <div class="title">
+        Terminbestätigung
+    </div>
+
+    <!-- Kundeninfo -->
+    <div class="info-box">
+        <div class="info-row">
+            <span class="label">Kunde:</span>
+            {{ appointment.customer.first_name }} {{ appointment.customer.last_name }}
+        </div>
+        <div class="info-row">
+            <span class="label">Adresse:</span>
+            {{ appointment.customer.street }}<br>
+            <span class="label"></span>
+            {{ appointment.customer.zip_code }} {{ appointment.customer.city }}
+        </div>
+        <div class="info-row">
+            <span class="label">Telefon:</span>
+            {{ appointment.customer.phone }}
+        </div>
+        <div class="info-row">
+            <span class="label">Email:</span>
+            {{ appointment.customer.email }}
+        </div>
+    </div>
+
+    <!-- Termindetails -->
+    <div class="info-box">
+        <div class="info-row">
+            <span class="label">Termin:</span>
+            {{ appointment.date_time|date:"d.m.Y H:i" }} Uhr
+        </div>
+        <div class="info-row">
+            <span class="label">Dauer:</span>
+            {{ appointment.duration }} Minuten
+        </div>
+        <div class="info-row">
+            <span class="label">Status:</span>
+            <span class="status status-{{ appointment.status }}">
+                {{ appointment.get_status_display }}
+            </span>
+        </div>
+        <div class="info-row">
+            <span class="label">Art der Wartung:</span>
+            {{ appointment.service_type }}
+        </div>
+    </div>
+
+    <!-- Fahrzeuginfo -->
+    <div class="info-box">
+        <div class="info-row">
+            <span class="label">Fahrzeug:</span>
+            {{ appointment.vehicle.brand }} {{ appointment.vehicle.model }}
+        </div>
+        <div class="info-row">
+            <span class="label">Kennzeichen:</span>
+            {{ appointment.vehicle.license_plate }}
+        </div>
+        <div class="info-row">
+            <span class="label">Baujahr:</span>
+            {{ appointment.vehicle.year }}
+        </div>
+        {% if appointment.vehicle.vin %}
+        <div class="info-row">
+            <span class="label">VIN:</span>
+            {{ appointment.vehicle.vin }}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Beschreibung -->
+    {% if appointment.description %}
+    <div class="info-box">
+        <div class="info-row">
+            <span class="label">Beschreibung:</span>
+            {{ appointment.description|linebreaks }}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="footer">
+        {{ company_name }} - {{ company_street }} - {{ company_zip }} {{ company_city }}<br>
+        Tel: {{ company_phone }} - Email: {{ company_email }}<br>
+        {% now "d.m.Y H:i" %} - Seite 1/1
+    </div>
+</body>
+</html>

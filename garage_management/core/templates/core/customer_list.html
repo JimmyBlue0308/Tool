@@ -1,0 +1,147 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Kunden{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Kundenliste</h5>
+        <a href="{% url 'customer_create' %}" class="btn btn-primary">
+            <i class="bi bi-person-plus"></i> Neuer Kunde
+        </a>
+    </div>
+    <div class="card-body">
+        <!-- Suchleiste -->
+        <form method="get" class="mb-4">
+            <div class="input-group">
+                <input type="text" name="search" class="form-control" 
+                       placeholder="Suchen nach Name, Email oder Telefon..." 
+                       value="{{ search_query }}">
+                <button class="btn btn-outline-primary" type="submit">
+                    <i class="bi bi-search"></i> Suchen
+                </button>
+                {% if search_query %}
+                    <a href="{% url 'customer_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Zurücksetzen
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+
+        <!-- Kundentabelle -->
+        {% if customers %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Telefon</th>
+                            <th>Fahrzeuge</th>
+                            <th>Termine</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in customers %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'customer_detail' customer.pk %}" class="text-decoration-none">
+                                    {{ customer.first_name }} {{ customer.last_name }}
+                                </a>
+                            </td>
+                            <td>
+                                <a href="mailto:{{ customer.email }}" class="text-decoration-none">
+                                    {{ customer.email }}
+                                </a>
+                            </td>
+                            <td>
+                                <a href="tel:{{ customer.phone }}" class="text-decoration-none">
+                                    {{ customer.phone }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">
+                                    {{ customer.vehicles.count }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">
+                                    {{ customer.appointments.count }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'customer_detail' customer.pk %}" 
+                                       class="btn btn-sm btn-info" 
+                                       title="Details anzeigen">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{% url 'customer_edit' customer.pk %}" 
+                                       class="btn btn-sm btn-primary"
+                                       title="Bearbeiten">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-danger delete-customer" 
+                                            data-id="{{ customer.id }}"
+                                            title="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                {% if search_query %}
+                    <i class="bi bi-info-circle"></i> Keine Kunden gefunden für "{{ search_query }}"
+                {% else %}
+                    <i class="bi bi-info-circle"></i> Noch keine Kunden vorhanden
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tooltips initialisieren
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Kunden-Löschung
+    document.querySelectorAll('.delete-customer').forEach(button => {
+        button.addEventListener('click', function() {
+            const customerId = this.dataset.id;
+            if (confirm('Möchten Sie diesen Kunden wirklich löschen?')) {
+                fetch(`/customers/${customerId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        throw new Error('Fehler beim Löschen des Kunden');
+                    }
+                })
+                .catch(error => {
+                    alert(error.message);
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
